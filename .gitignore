@@ -1,0 +1,24 @@
+# Ambiente
+.env
+evolution-api/.env
+
+# Dependências
+node_modules/
+
+# Build
+dist/
+
+# Estado do monitor
+data/state.json
+data/debug/
+
+# Docker volumes (se criados localmente)
+evolution_data/
+postgres_data/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/

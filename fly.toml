@@ -1,0 +1,21 @@
+app = 'uerj-monitor'
+primary_region = 'gru'
+
+[env]
+  EVOLUTION_INSTANCE = 'uerj-monitor'
+
+# Secrets (definir via: fly secrets set NOME=valor)
+# UERJ_LOGIN
+# UERJ_PASSWORD
+# EVOLUTION_API_URL=https://uerj-evolution.fly.dev
+# EVOLUTION_API_KEY
+# WHATSAPP_TARGET
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[[mounts]]
+  source = 'monitor_data'
+  destination = '/app/data'
