@@ -1,5 +1,5 @@
 {
-  "name": "crowler-uerj",
+  "name": "crawler-uerj",
   "version": "1.0.0",
   "description": "Monitor de vagas em disciplinas da UERJ via Playwright + WhatsApp",
   "main": "dist/index.js",

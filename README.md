@@ -17,7 +17,7 @@ Monitora vagas em disciplinas da UERJ pelo portal [Aluno Online](https://www.alu
 
 ```bash
 git clone <url-do-repo>
-cd crowler-uerj
+cd crawler-uerj
 npm install
 npx playwright install chromium
 ```
