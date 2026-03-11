@@ -1,22 +1,23 @@
 # Monitor de Vagas UERJ
 
-Monitora vagas em disciplinas da UERJ pelo portal [Aluno Online](https://www.alunoonline.uerj.br/requisicaoaluno/) e envia alertas via WhatsApp quando vagas ficam disponíveis.
+Monitora vagas em disciplinas da UERJ pelo portal [Aluno Online](https://www.alunoonline.uerj.br/requisicaoaluno/) e envia alertas via **Telegram** (e opcionalmente email ou WhatsApp) quando vagas ficam disponíveis.
 
 ## Como funciona
 
-- A cada **5 minutos**: faz login, coleta os dados de vagas de cada disciplina configurada e envia alerta via WhatsApp se `Oferecidas > Solicitadas` (ou seja, se surgiram novas vagas desde a última verificação).
-- A cada **1 hora**: envia um resumo de status independente de haver mudanças nas vagas.
+- A cada **5 minutos**: faz login, coleta os dados de vagas de cada disciplina configurada e envia alerta imediato via Telegram se surgiram novas vagas.
+- A cada **1 hora**: envia um resumo de status independente de haver mudanças.
 - O estado é salvo em `data/state.json` para evitar alertas duplicados.
+- Uma página de status pública exibe os logs e o estado atual das vagas em tempo real.
 
 ## Pré-requisitos
 
 - **Node.js** ≥ 18
-- **Docker** e **Docker Compose** (para rodar a Evolution API)
+- **Bot do Telegram** (criado via [@BotFather](https://t.me/BotFather))
 
 ## Instalação
 
 ```bash
-git clone <url-do-repo>
+git clone https://github.com/rhuanlennon/crawler-uerj.git
 cd crawler-uerj
 npm install
 npx playwright install chromium
@@ -26,70 +27,39 @@ npx playwright install chromium
 
 ### 1. Variáveis de ambiente
 
-Copie o `.env.example` e preencha com suas credenciais:
+Copie o `.env.example` e preencha:
 
 ```bash
 cp .env.example .env
 ```
 
 | Variável | Descrição |
-|---|---|
+| --- | --- |
 | `UERJ_LOGIN` | Sua matrícula ou CPF do Aluno Online |
 | `UERJ_PASSWORD` | Sua senha do Aluno Online |
-| `EVOLUTION_API_URL` | URL base da Evolution API (ex: `http://localhost:8080`) |
-| `EVOLUTION_API_KEY` | Chave de API configurada na Evolution API |
-| `EVOLUTION_INSTANCE` | Nome da instância criada na Evolution API |
-| `WHATSAPP_TARGET` | Número de destino com código do país (ex: `5521999999999`) |
+| `TELEGRAM_BOT_TOKEN` | Token do bot (gerado pelo @BotFather) |
+| `TELEGRAM_CHAT_ID` | ID do grupo ou chat privado |
+| `EMAIL_FROM` | *(opcional)* Conta Gmail para envio |
+| `EMAIL_PASS` | *(opcional)* Senha de App do Gmail |
+| `EMAIL_TO` | *(opcional)* Destinatário(s), separados por vírgula |
 
-### 2. Subindo a Evolution API com Docker
+> Configure ao menos **Telegram** ou **Email**. WhatsApp via Evolution API também é suportado mas requer self-hosting.
 
-O `docker-compose.yml` já está incluído no projeto em `evolution-api/docker-compose.yml`. Basta subir:
+### 2. Configurando o Telegram
 
-```bash
-docker compose -f evolution-api/docker-compose.yml up -d
-```
+**Criar o bot:**
 
-Para parar:
+1. Abra o Telegram e pesquise `@BotFather`
+2. Envie `/newbot` e siga as instruções
+3. Copie o token gerado → `TELEGRAM_BOT_TOKEN`
 
-```bash
-docker compose -f evolution-api/docker-compose.yml down
-```
+**Obter o Chat ID do grupo:**
 
-#### Conectando o WhatsApp
-
-Com o container rodando, crie a instância e escaneie o QR code:
-
-```bash
-# Criar a instância
-curl -X POST "http://localhost:8080/instance/create" \
-  -H "apikey: sua_chave_aqui" \
-  -H "Content-Type: application/json" \
-  -d '{"instanceName":"uerj-monitor","qrcode":true,"integration":"WHATSAPP-BAILEYS"}'
-
-# Salvar o QR code como imagem e abrir
-curl -s "http://localhost:8080/instance/connect/uerj-monitor" \
-  -H "apikey: sua_chave_aqui" | \
-  python3 -c "
-import json, sys, base64
-d = json.load(sys.stdin)
-b64 = d.get('base64','')
-if b64:
-    with open('/tmp/qrcode.png', 'wb') as f:
-        f.write(base64.b64decode(b64.split(',')[1]))
-    print('QR code salvo em /tmp/qrcode.png')
-"
-open /tmp/qrcode.png  # macOS
-```
-
-Ou acesse `http://localhost:8080/manager` no browser, clique no card da instância e escaneie o QR code com o WhatsApp (Configurações → Aparelhos conectados → Conectar aparelho).
-
-Verifique se conectou:
-
-```bash
-curl "http://localhost:8080/instance/connectionState/uerj-monitor" \
-  -H "apikey: sua_chave_aqui"
-# Esperado: {"instance":{"instanceName":"uerj-monitor","state":"open"}}
-```
+1. Crie um grupo no Telegram e adicione o bot
+2. Nas configurações do bot no BotFather, desative o **Privacy Mode** (`Bot Settings → Group Privacy → Turn off`)
+3. Envie qualquer mensagem no grupo
+4. Acesse `https://api.telegram.org/bot<TOKEN>/getUpdates`
+5. Copure o `"id"` dentro de `"chat"` (número negativo para grupos) → `TELEGRAM_CHAT_ID`
 
 ### 3. Adicionando disciplinas para monitorar
 
@@ -102,7 +72,7 @@ export const DISCIPLINES: DisciplineConfig[] = [
 ];
 ```
 
-O `code` deve ser exatamente o código que aparece na lista de "Disciplinas do Currículo/A Cursar" no portal. O campo `turma` é opcional e assume `1` como padrão.
+O `code` deve ser exatamente o código que aparece na lista "Disciplinas do Currículo/A Cursar" no portal. O campo `turma` é opcional (padrão: `1`).
 
 ## Executando
 
@@ -115,73 +85,72 @@ npm run build
 npm start
 ```
 
-Ao iniciar, uma verificação é feita imediatamente e em seguida os crons de 5 minutos e 1 hora assumem o controle.
+Ao iniciar, uma verificação é feita imediatamente. Em seguida os crons de 5 minutos e 1 hora assumem o controle.
 
-## Deixando rodando continuamente (local)
+## Página de status
 
-Para manter o monitor rodando em segundo plano na sua máquina sem depender de uma janela de terminal aberta, use o **PM2**:
+O monitor expõe uma página web com os logs e estado atual das vagas:
 
-### Instalação do PM2
+- **Local:** `http://localhost:8080`
+- **Nuvem (Fly.io):** `https://uerj-monitor.fly.dev`
+
+A página atualiza automaticamente a cada 60 segundos e exibe:
+
+- Estado de cada disciplina monitorada (vagas disponíveis / sem vagas)
+- Horário da última notificação enviada
+- Últimos 100 logs do sistema
+
+## Deploy na nuvem (Fly.io)
+
+O projeto já está configurado para rodar no Fly.io. Após instalar o [flyctl](https://fly.io/docs/hands-on/install-flyctl/):
+
+```bash
+fly auth login
+
+# Configurar secrets
+fly secrets set UERJ_LOGIN=sua_matricula UERJ_PASSWORD=sua_senha \
+  TELEGRAM_BOT_TOKEN=seu_token TELEGRAM_CHAT_ID=seu_chat_id \
+  --app uerj-monitor
+
+# Deploy
+fly deploy --ha=false
+```
+
+## Deixando rodando localmente (PM2)
 
 ```bash
 npm install -g pm2
-```
-
-### Iniciando o monitor com PM2
-
-```bash
-# Builda o projeto primeiro
 npm run build
-
-# Inicia com PM2
 pm2 start dist/index.js --name uerj-monitor
-
-# Verifica se está rodando
-pm2 status
-
-# Acompanha os logs em tempo real
-pm2 logs uerj-monitor
-```
-
-### Fazendo o PM2 iniciar automaticamente com o sistema
-
-```bash
-pm2 startup
-# Execute o comando que ele mostrar na tela
 pm2 save
+pm2 startup  # para iniciar automaticamente com o sistema
 ```
 
-A partir daí o monitor vai iniciar automaticamente sempre que sua máquina ligar, sem precisar abrir terminal.
-
-### Comandos úteis do PM2
+Comandos úteis:
 
 ```bash
-pm2 stop uerj-monitor      # Para o monitor
-pm2 restart uerj-monitor   # Reinicia
-pm2 delete uerj-monitor    # Remove do PM2
-pm2 logs uerj-monitor      # Ver logs
-pm2 monit                  # Dashboard em tempo real
+pm2 logs uerj-monitor    # ver logs em tempo real
+pm2 restart uerj-monitor --update-env  # reiniciar com novas variáveis
+pm2 stop uerj-monitor
 ```
-
-> **Próximo passo:** Para rodar na nuvem sem depender da sua máquina, o ideal é subir em uma VPS (ex: Oracle Cloud Free Tier, DigitalOcean, Hetzner) usando Docker. Ajuste `SERVER_URL` no `evolution-api/docker-compose.yml` para o IP/domínio público do servidor antes de subir.
 
 ## Formato das mensagens
 
 **Alerta de vaga disponível:**
 
-```
+```text
 🎓 Vagas abertas na UERJ!
 
 • Sistemas Operacionais II Turma 2 (IME04-10840)
   📊 Oferecidas: 40 | Ocupadas: 38 | Solicitadas: 35
-  ✅ Vagas disponíveis: 5
+  ✅ Vagas disponíveis: 2
 
 Acesse: https://alunoonline.uerj.br
 ```
 
 **Status horário:**
 
-```
+```text
 📊 Status UERJ Monitor - 23:00
 
 • Sistemas Operacionais II Turma 2 (IME04-10840)
@@ -193,21 +162,23 @@ Acesse: https://alunoonline.uerj.br
 
 ## Estrutura do projeto
 
-```
-evolution-api/
-└── docker-compose.yml  # Evolution API v1.8.2 (WhatsApp gateway)
+```text
 src/
-├── index.ts       # Ponto de entrada: validação do .env + execução inicial + início do scheduler
+├── index.ts       # Entrada: validação do .env + servidor HTTP + scheduler
+├── server.ts      # Servidor HTTP com página de status e logs
 ├── scheduler.ts   # node-cron: verificação a cada 5min + status a cada 1h
 ├── crawler.ts     # Playwright: login, navegação e coleta de vagas
-├── notifier.ts    # Evolution API: envio de alertas e mensagens de status
-├── state.ts       # Leitura/escrita do data/state.json + detecção de novas vagas
+├── notifier.ts    # Envio de alertas via Telegram, Email ou WhatsApp
+├── state.ts       # Leitura/escrita do data/state.json
 ├── config.ts      # Variáveis de ambiente + lista de DISCIPLINES
 └── types.ts       # Interfaces TypeScript
 data/
-└── state.json     # Criado automaticamente; registra o último estado conhecido das vagas
+├── state.json     # Criado automaticamente; registra o último estado
+└── monitor.log    # Log persistente exibido na página de status
+evolution-api/
+└── docker-compose.yml  # Evolution API v1.8.2 (opcional, para WhatsApp local)
 ```
 
 ## Arquivos de debug
 
-A cada verificação de disciplina, um screenshot e o HTML da página são salvos em `data/debug/` para facilitar a identificação de problemas de navegação.
+A cada verificação, um screenshot e o HTML da página são salvos em `data/debug/` para facilitar a identificação de problemas de navegação.
