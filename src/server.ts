@@ -77,13 +77,13 @@ function html(state: Record<string, unknown>, logs: string[]): string {
 </head>
 <body>
   <h1>🎓 UERJ Monitor</h1>
-  <div class="sub">Atualiza automaticamente a cada 60s &nbsp;·&nbsp; Horário de Brasília: ${now}</div>
+  <div class="sub">Atualiza a cada 5 minutos &nbsp;·&nbsp; Horário de Brasília: ${now}</div>
 
   <h2>Estado das disciplinas</h2>
   ${stateRows
-    ? `<table><thead><tr><th>Disciplina</th><th>Vagas</th><th>Última notificação</th></tr></thead><tbody>${stateRows}</tbody></table>`
-    : '<div class="badge">Nenhuma verificação concluída ainda</div>'
-  }
+      ? `<table><thead><tr><th>Disciplina</th><th>Vagas</th><th>Última notificação</th></tr></thead><tbody>${stateRows}</tbody></table>`
+      : '<div class="badge">Nenhuma verificação concluída ainda</div>'
+    }
 
   <h2>Últimos logs</h2>
   <div class="logs">${logLines || '<div>Nenhum log disponível</div>'}</div>

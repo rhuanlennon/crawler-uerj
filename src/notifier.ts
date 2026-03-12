@@ -81,7 +81,7 @@ function buildAlertText(disciplines: DisciplineStatus[]): string {
 }
 
 function buildStatusText(disciplines: DisciplineStatus[]): string {
-  const hour = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const hour = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Sao_Paulo' });
 
   const lines = disciplines.flatMap((d) => {
     const turmaStr = d.turma !== undefined ? ` Turma ${d.turma}` : '';
